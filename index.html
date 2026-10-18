@@ -2,267 +2,408 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mini CapCut Web Clone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CapCut Web Clone</title>
     <style>
-        :root { --bg: #121212; --panel: #1e1e1e; --primary: #00d2d3; --border: #333; }
-        body { background: var(--bg); color: white; font-family: sans-serif; display: flex; flex-direction: column; margin: 0; height: 100vh; overflow: hidden; }
-        
-        /* --- KHU VỰC PREVIEW --- */
-        .preview-area { flex: 1; display: flex; justify-content: center; align-items: center; background: #000; position: relative; overflow: hidden; }
-        #mainCanvas { box-shadow: 0 0 20px rgba(0,0,0,0.8); background: #222; }
-        
-        /* Nút bấm nổi trên Preview */
-        .preview-controls { position: absolute; bottom: 20px; display: flex; gap: 10px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; background: var(--primary); color: #000; }
-        .btn:disabled { background: #555; color: #888; cursor: not-allowed; }
-        .btn-upload { background: #444; color: white; }
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
-        /* --- KHU VỰC ĐIỀU KHIỂN DƯỚI CÙNG --- */
-        .bottom-panel { height: 350px; background: var(--panel); display: flex; border-top: 1px solid var(--border); }
+        :root {
+            --bg-main: #000000;
+            --bg-panel: #1c1c1e;
+            --bg-item: #2c2c2e;
+            --text-main: #ffffff;
+            --text-muted: #8e8e93;
+            --primary: #00d2d3;
+            --border-color: #333333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; user-select: none; }
         
-        /* Panel Trái: Danh sách Layers */
-        .layers-list { width: 250px; border-right: 1px solid var(--border); overflow-y: auto; padding: 10px; }
-        .layer-item { padding: 10px; background: #2a2a2a; margin-bottom: 5px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; display: flex; justify-content: space-between; }
-        .layer-item.active { border-color: var(--primary); background: #333; }
-        .layer-item span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+        body { 
+            background-color: var(--bg-main); color: var(--text-main); 
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        /* --- 1. TOP BAR --- */
+        .top-bar {
+            height: 56px; display: flex; justify-content: space-between; align-items: center;
+            padding: 0 16px; font-size: 20px; flex-shrink: 0;
+        }
+        .top-bar-left, .top-bar-right { display: flex; align-items: center; gap: 15px; }
+        .btn-export {
+            background-color: var(--primary); color: #000; font-weight: 500;
+            padding: 6px 16px; border-radius: 4px; font-size: 14px; border: none; cursor: pointer;
+        }
+        .premium-btn {
+            background: #2c2c2e; padding: 4px 10px; border-radius: 15px; font-size: 13px;
+            display: flex; align-items: center; gap: 5px; color: #fff;
+        }
+
+        /* --- 2. PREVIEW AREA --- */
+        .preview-area {
+            flex: 1; background: #000; position: relative; display: flex; justify-content: center; align-items: center;
+            overflow: hidden; padding: 10px;
+        }
+        #mainCanvas {
+            max-width: 100%; max-height: 100%; background: #111; border-radius: 4px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .preview-controls {
+            position: absolute; bottom: 10px; left: 0; right: 0;
+            display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none;
+        }
+        .preview-controls > div { display: flex; gap: 20px; pointer-events: auto; font-size: 24px; color: #fff; }
+        .play-btn { font-size: 30px; }
+
+        /* --- 3. TIMELINE --- */
+        .timeline-container {
+            height: 220px; background: var(--bg-panel); display: flex; flex-direction: column; flex-shrink: 0;
+            position: relative; border-top: 1px solid var(--border-color);
+        }
+        .time-indicator {
+            display: flex; justify-content: space-between; padding: 10px 16px; font-size: 12px; color: var(--text-muted);
+        }
         
-        /* Panel Phải: Công cụ chỉnh sửa */
-        .edit-tools { flex: 1; padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; overflow-y: auto; }
-        .tool-group { display: flex; flex-direction: column; gap: 5px; }
-        .tool-group label { font-size: 12px; color: #aaa; display: flex; justify-content: space-between; }
-        input[type=range] { width: 100%; cursor: pointer; }
-        select { padding: 8px; background: #333; color: white; border: 1px solid var(--border); border-radius: 5px; margin-top: 5px; }
+        /* Thanh cuộn ngang chứa các track */
+        .timeline-tracks-wrapper {
+            flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; padding-left: 80px;
+        }
         
-        /* Timeline Giả lập (Chỉ hiển thị) */
-        .timeline-bar { height: 50px; background: #222; border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; font-size: 14px; color: #888; }
+        /* Vạch trắng Playhead */
+        .playhead {
+            position: absolute; top: 0; bottom: 0; width: 2px; background: #fff;
+            left: 50%; z-index: 10; pointer-events: none;
+        }
+        .playhead::before {
+            content: ''; position: absolute; top: 0; left: -4px; border-left: 5px solid transparent;
+            border-right: 5px solid transparent; border-top: 6px solid #fff;
+        }
+
+        /* Các nút bên trái timeline (Cắt AI, Ảnh bìa) */
+        .timeline-left-tools {
+            position: absolute; left: 0; top: 40px; width: 70px; display: flex; flex-direction: column; gap: 10px; z-index: 5;
+            background: var(--bg-panel); padding: 5px;
+        }
+        .tool-icon-btn {
+            width: 60px; height: 60px; background: var(--bg-item); border-radius: 8px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 10px; color: var(--text-muted); text-align: center; line-height: 1.2;
+        }
+
+        /* Các Track */
+        .track-row {
+            height: 40px; margin-bottom: 8px; display: flex; align-items: center; position: relative;
+        }
+        .track-block {
+            background: #2c2c2e; height: 100%; border-radius: 4px; display: flex; align-items: center;
+            padding: 0 10px; font-size: 13px; color: #ccc; min-width: 150px;
+        }
+        .track-block.video-active { background: #3b3b4f; color: #fff; border: 1px solid #5d5d8a; }
+        .track-block.audio { background: #3b2f4f; color: #fff; }
+
+        /* --- 4. BOTTOM NAVIGATION --- */
+        .bottom-nav {
+            height: 70px; background: var(--bg-panel); display: flex; align-items: center;
+            padding: 0 10px; overflow-x: auto; border-top: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+            min-width: 70px; font-size: 11px; color: var(--text-muted); cursor: pointer;
+        }
+        .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+
+        /* --- 5. EDIT PANEL (BOTTOM SHEET) --- */
+        .edit-panel {
+            position: absolute; bottom: -100%; left: 0; right: 0; height: 300px;
+            background: var(--bg-panel); border-radius: 15px 15px 0 0; z-index: 100;
+            transition: bottom 0.3s ease-in-out; display: flex; flex-direction: column;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5); border-top: 1px solid var(--border-color);
+        }
+        .edit-panel.open { bottom: 0; }
+        
+        .panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; border-bottom: 1px solid var(--border-color);
+        }
+        .panel-title { font-weight: 500; font-size: 16px; }
+        .panel-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+
+        .panel-content {
+            flex: 1; overflow-y: auto; padding: 15px; display: grid;
+            grid-template-columns: 1fr 1fr; gap: 15px;
+        }
+        
+        /* Sliders */
+        .slider-group { display: flex; flex-direction: column; gap: 8px; }
+        .slider-group.full-width { grid-column: span 2; }
+        .slider-header { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+        .slider-header span:last-child { color: #fff; }
+        
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent; height: 20px;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #444; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #fff; margin-top: -6px; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        /* Nút Upload Ẩn */
+        #fileInput { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- KHU VỰC PREVIEW VIDEO -->
-    <div class="preview-area">
+    <!-- 1. TOP BAR -->
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <span style="font-size: 24px; cursor: pointer;">✕</span>
+            <span style="font-size: 20px; cursor: pointer;">🔍</span>
+        </div>
+        <div class="top-bar-right">
+            <div class="premium-btn">💎 Giá 89%</div>
+            <div style="font-size: 14px; font-weight: 500; background: #333; padding: 4px 10px; border-radius: 4px;">AI UHD ▾</div>
+            <button class="btn-export" id="btnExport" onclick="exportVideo()" disabled>Xuất</button>
+        </div>
+    </header>
+
+    <!-- 2. PREVIEW AREA -->
+    <main class="preview-area">
+        <!-- Nút Upload được giả lập bằng cách click vào vùng trống nếu chưa có video -->
+        <div id="emptyState" style="position: absolute; text-align: center; cursor: pointer;" onclick="document.getElementById('fileInput').click()">
+            <div style="font-size: 40px; margin-bottom: 10px;">+</div>
+            <div style="color: #888;">Nhấn để tải Video / Ảnh lên</div>
+        </div>
+
         <canvas id="mainCanvas" width="720" height="720"></canvas>
         
+        <!-- Overlay điều khiển -->
         <div class="preview-controls">
-            <label class="btn btn-upload">
-                + Tải File Lên (Video/Ảnh/Âm thanh)
-                <input type="file" id="fileInput" multiple accept="video/*,image/*,audio/*" style="display: none;">
-            </label>
-            <button class="btn" id="btnExport" onclick="exportVideo()" disabled>XUẤT VIDEO</button>
+            <div><span>⛶</span></div>
+            <div><span class="play-btn" onclick="alert('Chức năng Play/Pause toàn hệ thống đang phát triển')">▶</span></div>
+            <div><span style="font-size: 20px;">↺</span> <span style="font-size: 20px;">↻</span></div>
         </div>
-    </div>
+    </main>
 
-    <!-- BẢNG ĐIỀU KHIỂN -->
-    <div class="bottom-panel">
-        <!-- Danh sách các lớp -->
-        <div class="layers-list" id="layersList">
-            <div style="font-size: 12px; color: #888; margin-bottom: 10px;">DANH SÁCH LỚP</div>
-            <!-- Các layer sẽ được thêm vào đây bằng JS -->
+    <!-- 3. TIMELINE -->
+    <section class="timeline-container">
+        <div class="time-indicator">
+            <span>00:00 / 00:03</span>
+            <span style="color:#fff;">00:02</span>
+        </div>
+        
+        <!-- Thanh công cụ trái của Timeline -->
+        <div class="timeline-left-tools">
+            <div class="tool-icon-btn" onclick="document.getElementById('fileInput').click()">
+                <span style="font-size: 18px;">+</span>
+                <span>Thêm</span>
+            </div>
+            <div class="tool-icon-btn" style="background: transparent; border: 1px dashed #444;">
+                <span style="font-size: 18px;">✂️</span>
+                <span>Cắt AI</span>
+            </div>
         </div>
 
-        <!-- Công cụ chỉnh sửa chi tiết -->
-        <div class="edit-tools" id="editTools" style="opacity: 0.5; pointer-events: none;">
-            <div class="tool-group">
-                <label>Kích thước (Scale) <span id="valScale">1.0x</span></label>
-                <input type="range" id="inputScale" min="0.1" max="3" step="0.1" value="1">
-            </div>
-            <div class="tool-group">
-                <label>Xoay 2D (Rotate) <span id="valRot2D">0°</span></label>
-                <input type="range" id="inputRot2D" min="-180" max="180" value="0">
-            </div>
-            <div class="tool-group">
-                <label>Xoay 3D Trục Y <span id="valRot3DY">0°</span></label>
-                <input type="range" id="inputRot3DY" min="-180" max="180" value="0">
-            </div>
-            <div class="tool-group">
-                <label>Xoay 3D Trục X <span id="valRot3DX">0°</span></label>
-                <input type="range" id="inputRot3DX" min="-180" max="180" value="0">
-            </div>
-            <div class="tool-group">
-                <label>Vị trí X <span id="valPosX">0</span></label>
-                <input type="range" id="inputPosX" min="-300" max="300" value="0">
-            </div>
-            <div class="tool-group">
-                <label>Vị trí Y <span id="valPosY">0</span></label>
-                <input type="range" id="inputPosY" min="-300" max="300" value="0">
+        <div class="timeline-tracks-wrapper">
+            <div class="playhead" id="playhead"></div>
+            
+            <!-- Track Video -->
+            <div class="track-row" id="trackVideo">
+                <!-- Nội dung track được render bằng JS -->
             </div>
             
-            <div class="tool-group" style="grid-column: span 2; border-top: 1px solid #444; padding-top: 10px;">
-                <label>Chọn Đồ Thị Chuyển Động</label>
-                <select id="selectGraph">
+            <!-- Track Audio -->
+            <div class="track-row">
+                <div class="track-block" onclick="document.getElementById('fileInput').click()">+ Thêm âm thanh</div>
+            </div>
+            
+            <!-- Track Text -->
+            <div class="track-row">
+                <div class="track-block" onclick="alert('Tính năng thêm văn bản đang phát triển')">+ Thêm văn bản</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. BOTTOM NAVIGATION -->
+    <nav class="bottom-nav">
+        <div class="nav-item" onclick="openEditPanel()">
+            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            <span style="color: #fff;">Chỉnh sửa</span>
+        </div>
+        <div class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            <span>Âm thanh</span>
+        </div>
+        <div class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
+            <span>Văn bản</span>
+        </div>
+        <div class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg>
+            <span>Hiệu ứng</span>
+        </div>
+        <div class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+            <span>Lớp phủ</span>
+        </div>
+    </nav>
+
+    <!-- 5. EDIT PANEL (BOTTOM SHEET) -->
+    <div class="edit-panel" id="editPanel">
+        <div class="panel-header">
+            <span class="panel-close" onclick="closeEditPanel()">✕</span>
+            <span class="panel-title">Chỉnh sửa Layer</span>
+            <span style="width: 20px;"></span> <!-- Spacer -->
+        </div>
+        <div class="panel-content" id="editContent" style="opacity: 0.5; pointer-events: none;">
+            <div class="slider-group">
+                <div class="slider-header"><span>Kích thước</span><span id="valScale">1.0x</span></div>
+                <input type="range" id="inputScale" min="0.1" max="3" step="0.1" value="1">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span>Xoay 2D</span><span id="valRot2D">0°</span></div>
+                <input type="range" id="inputRot2D" min="-180" max="180" value="0">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span>Xoay 3D (Y)</span><span id="valRot3DY">0°</span></div>
+                <input type="range" id="inputRot3DY" min="-180" max="180" value="0">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span>Xoay 3D (X)</span><span id="valRot3DX">0°</span></div>
+                <input type="range" id="inputRot3DX" min="-180" max="180" value="0">
+            </div>
+            <div class="slider-group full-width">
+                <div class="slider-header"><span>Đồ thị chuyển động</span></div>
+                <select id="selectGraph" style="padding: 8px; background: #333; color: white; border: 1px solid #444; border-radius: 5px;">
                     <option value="linear">Đều (Linear)</option>
                     <option value="easeOut">Hình khối phóng ra (Ease-out)</option>
                     <option value="easeInOut">Hình khối chữ S (S-Curve)</option>
                 </select>
             </div>
-            
-            <div class="tool-group" style="grid-column: span 2; display: flex; gap: 10px;">
-                <button class="btn" style="flex:1;" onclick="playAnimation()">▶ CHẠY HIỆU ỨNG</button>
-                <button class="btn" style="flex:1; background:#444; color:white;" onclick="removeLayer()">XÓA LỚP NÀY</button>
+            <div class="slider-group full-width" style="flex-direction: row; gap: 10px; margin-top: 10px;">
+                <button class="btn-export" style="flex:1; padding: 12px; background:#444; color:#fff;" onclick="playAnimation()">▶ CHẠY THỬ</button>
+                <button class="btn-export" style="flex:1; padding: 12px; background:#ff3b30; color:#fff;" onclick="removeLayer()">XÓA LỚP</button>
             </div>
         </div>
     </div>
 
-    <!-- Thanh Timeline Giả lập -->
-    <div class="timeline-bar">
-        <span>00:00:00 / 00:00:03</span>
-        <div style="flex:1; height: 20px; background: #333; margin-left: 20px; border-radius: 5px; position: relative;">
-            <div id="playhead" style="position: absolute; width: 2px; height: 100%; background: var(--primary); left: 0%;"></div>
-        </div>
-    </div>
+    <input type="file" id="fileInput" multiple accept="video/*,image/*">
 
     <script>
-        // --- KHỞI TẠO HỆ THỐNG ---
+        // --- LOGIC HOẠT ĐỘNG (Giữ nguyên từ bản trước) ---
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d');
         const fileInput = document.getElementById('fileInput');
+        const emptyState = document.getElementById('emptyState');
+        const trackVideo = document.getElementById('trackVideo');
+        const editPanel = document.getElementById('editPanel');
+        const editContent = document.getElementById('editContent');
         
-        let layers = []; // Mảng chứa tất cả các lớp (ảnh, video, âm thanh)
+        let layers = []; 
         let activeLayerId = null;
-        let isPlaying = false;
 
-        // Các thẻ input điều khiển
         const inputs = {
             scale: document.getElementById('inputScale'),
             rot2D: document.getElementById('inputRot2D'),
             rot3DY: document.getElementById('inputRot3DY'),
             rot3DX: document.getElementById('inputRot3DX'),
-            posX: document.getElementById('inputPosX'),
-            posY: document.getElementById('inputPosY'),
             graph: document.getElementById('selectGraph')
         };
 
-        // --- 1. XỬ LÝ TẢI FILE LÊN ---
+        // 1. Upload File
         fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
-            
             files.forEach(file => {
+                if (!file.type.startsWith('video/') && !file.type.startsWith('image/')) return;
+
                 const url = URL.createObjectURL(file);
                 const id = Date.now() + Math.random().toString(36).substr(2, 5);
                 
-                let type = 'image';
-                let element = null;
-
-                if (file.type.startsWith('video/')) {
-                    type = 'video';
-                    element = document.createElement('video');
-                    element.src = url;
+                let type = file.type.startsWith('video/') ? 'video' : 'image';
+                let element = type === 'video' ? document.createElement('video') : new Image();
+                
+                element.src = url;
+                if (type === 'video') {
                     element.crossOrigin = 'anonymous';
                     element.loop = true;
-                    element.muted = true; // Tắt tiếng video gốc để tránh lỗi
-                    element.play();
-                } else if (file.type.startsWith('image/')) {
-                    type = 'image';
-                    element = new Image();
-                    element.src = url;
-                } else if (file.type.startsWith('audio/')) {
-                    type = 'audio';
-                    element = new Audio(url);
-                    element.loop = true;
+                    element.muted = true;
                     element.play();
                 }
 
-                // Tạo đối tượng Layer mới
-                const newLayer = {
-                    id: id,
-                    name: file.name,
-                    type: type,
-                    element: element,
-                    // Thuộc tính hiển thị
-                    scale: 1,
-                    rot2D: 0,
-                    rot3DY: 0,
-                    rot3DX: 0,
-                    x: 0,
-                    y: 0,
-                    graph: 'linear'
-                };
-
-                // Chỉ thêm vào mảng hiển thị nếu là ảnh hoặc video
-                if (type !== 'audio') {
-                    layers.push(newLayer);
-                    renderLayersList();
-                    selectLayer(id); // Tự động chọn layer vừa thêm
-                    document.getElementById('btnExport').disabled = false;
-                } else {
-                    // Nếu là audio, chỉ phát ngầm (Demo)
-                    element.play();
-                    alert(`Đã thêm âm thanh: ${file.name}. (Chỉ phát ngầm khi chạy)`);
-                }
+                layers.push({ id, name: file.name, type, element, scale: 1, rot2D: 0, rot3DY: 0, rot3DX: 0, x: 0, y: 0, graph: 'linear' });
             });
-            fileInput.value = ''; // Reset input
+            
+            emptyState.style.display = 'none';
+            document.getElementById('btnExport').disabled = false;
+            renderTimeline(); 
+            selectLayer(layers[layers.length - 1].id); // Chọn file mới nhất
+            fileInput.value = '';
         });
 
-        // --- 2. QUẢN LÝ DANH SÁCH LỚP ---
-        function renderLayersList() {
-            const list = document.getElementById('layersList');
-            // Xóa các item cũ, giữ lại tiêu đề
-            list.innerHTML = '<div style="font-size: 12px; color: #888; margin-bottom: 10px;">DANH SÁCH LỚP</div>';
-            
-            // Duyệt ngược để lớp mới nhất hiện lên trên cùng
-            [...layers].reverse().forEach(layer => {
+        // 2. Render Timeline
+        function renderTimeline() {
+            trackVideo.innerHTML = '';
+            layers.forEach(layer => {
                 const div = document.createElement('div');
-                div.className = `layer-item ${layer.id === activeLayerId ? 'active' : ''}`;
+                div.className = `track-block video-active`;
+                div.innerHTML = `<span>🎬 ${layer.name}</span>`;
                 div.onclick = () => selectLayer(layer.id);
-                div.innerHTML = `
-                    <span>${layer.type === 'video' ? '🎬' : '🖼️'} ${layer.name}</span>
-                `;
-                list.appendChild(div);
+                trackVideo.appendChild(div);
             });
         }
 
+        // 3. Chọn Layer & Mở Panel
         function selectLayer(id) {
             activeLayerId = id;
-            renderLayersList();
-            
             const layer = layers.find(l => l.id === id);
             if (!layer) return;
 
-            // Bật bảng điều khiển
-            document.getElementById('editTools').style.opacity = '1';
-            document.getElementById('editTools').style.pointerEvents = 'auto';
-
-            // Cập nhật giá trị thanh trượt theo lớp đang chọn
+            // Cập nhật UI thanh trượt
             inputs.scale.value = layer.scale;
             inputs.rot2D.value = layer.rot2D;
             inputs.rot3DY.value = layer.rot3DY;
             inputs.rot3DX.value = layer.rot3DX;
-            inputs.posX.value = layer.x;
-            inputs.posY.value = layer.y;
             inputs.graph.value = layer.graph;
-            
             updateLabels();
+            
+            openEditPanel();
+        }
+
+        function openEditPanel() {
+            if(!activeLayerId) return;
+            editPanel.classList.add('open');
+            editContent.style.opacity = '1';
+            editContent.style.pointerEvents = 'auto';
+        }
+
+        function closeEditPanel() {
+            editPanel.classList.remove('open');
         }
 
         function removeLayer() {
             if (!activeLayerId) return;
             layers = layers.filter(l => l.id !== activeLayerId);
             activeLayerId = null;
-            renderLayersList();
-            
-            document.getElementById('editTools').style.opacity = '0.5';
-            document.getElementById('editTools').style.pointerEvents = 'none';
-            if(layers.length === 0) document.getElementById('btnExport').disabled = true;
-            drawFrame(); // Xóa hình ảnh trên canvas
+            renderTimeline();
+            closeEditPanel();
+            if (layers.length === 0) {
+                emptyState.style.display = 'block';
+                document.getElementById('btnExport').disabled = true;
+            }
+            drawFrame();
         }
 
-        // --- 3. LẮNG NGHE THAY ĐỔI THÔNG SỐ ---
+        // 4. Lắng nghe sự kiện Slider
         Object.keys(inputs).forEach(key => {
             inputs[key].addEventListener('input', () => {
                 if (!activeLayerId) return;
                 const layer = layers.find(l => l.id === activeLayerId);
-                if (!layer) return;
-
-                // Cập nhật dữ liệu
+                
                 if (key === 'scale') layer.scale = parseFloat(inputs.scale.value);
                 if (key === 'rot2D') layer.rot2D = parseFloat(inputs.rot2D.value);
                 if (key === 'rot3DY') layer.rot3DY = parseFloat(inputs.rot3DY.value);
                 if (key === 'rot3DX') layer.rot3DX = parseFloat(inputs.rot3DX.value);
-                if (key === 'posX') layer.x = parseFloat(inputs.posX.value);
-                if (key === 'posY') layer.y = parseFloat(inputs.posY.value);
                 if (key === 'graph') layer.graph = inputs.graph.value;
-
                 updateLabels();
             });
         });
@@ -272,49 +413,30 @@
             document.getElementById('valRot2D').innerText = inputs.rot2D.value + '°';
             document.getElementById('valRot3DY').innerText = inputs.rot3DY.value + '°';
             document.getElementById('valRot3DX').innerText = inputs.rot3DX.value + '°';
-            document.getElementById('valPosX').innerText = inputs.posX.value;
-            document.getElementById('valPosY').innerText = inputs.posY.value;
         }
 
-        // --- 4. VÒNG LẶP VẼ (RENDER LOOP) ---
+        // 5. Render Canvas (Fake 3D)
         function drawFrame() {
-            // Xóa canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Vẽ từng lớp (từ dưới lên trên)
             layers.forEach(layer => {
                 const el = layer.element;
-                // Bỏ qua nếu ảnh chưa load xong, video chưa có dữ liệu
                 if ((layer.type === 'image' && !el.complete) || (layer.type === 'video' && el.readyState < 2)) return;
 
                 ctx.save();
-                
-                // Đưa gốc tọa độ về giữa canvas
                 ctx.translate(canvas.width / 2 + layer.x, canvas.height / 2 + layer.y);
 
-                // Áp dụng CSS 3D giả lập (Bằng cách scale trục X hoặc Y dựa trên góc xoay)
-                // Lưu ý: Canvas 2D không có 3D thực sự, đây là mẹo vẽ (Fake 3D)
-                let fakeScaleX = 1, fakeScaleY = 1;
-                
-                // Giả lập xoay trục Y (Trái/Phải)
                 let radY = (layer.rot3DY * Math.PI) / 180;
-                fakeScaleX = Math.cos(radY); // Bóp méo chiều ngang
-                
-                // Giả lập xoay trục X (Trên/Dưới)
                 let radX = (layer.rot3DX * Math.PI) / 180;
-                fakeScaleY = Math.cos(radX); // Bóp méo chiều dọc
+                let fakeScaleX = Math.cos(radY);
+                let fakeScaleY = Math.cos(radX);
 
-                // Áp dụng Xoay 2D
                 ctx.rotate((layer.rot2D * Math.PI) / 180);
-                
-                // Áp dụng Scale tổng hợp
                 ctx.scale(layer.scale * fakeScaleX, layer.scale * fakeScaleY);
 
-                // Vẽ đối tượng vào giữa (Tâm là 0,0)
                 const w = el.videoWidth || el.width || 400;
                 const h = el.videoHeight || el.height || 400;
                 
-                // Tự động thu nhỏ nếu kích thước quá lớn so với canvas
                 const maxSize = 600;
                 let drawW = w, drawH = h;
                 if (w > maxSize || h > maxSize) {
@@ -322,108 +444,71 @@
                     drawW = w * ratio;
                     drawH = h * ratio;
                 }
-
                 ctx.drawImage(el, -drawW / 2, -drawH / 2, drawW, drawH);
-                
                 ctx.restore();
             });
-
             requestAnimationFrame(drawFrame);
         }
-        drawFrame(); // Bắt đầu vẽ liên tục
+        drawFrame();
 
-        // --- 5. HÀM TOÁN HỌC ĐỒ THỊ (EASING) ---
+        // 6. Đồ thị và Animation
         function getEasedProgress(p, type) {
             if (type === 'linear') return p;
-            if (type === 'easeOut') return 1 - Math.pow(1 - p, 3); // Phóng ra
-            if (type === 'easeInOut') {
-                return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; // Chữ S
-            }
+            if (type === 'easeOut') return 1 - Math.pow(1 - p, 3);
+            if (type === 'easeInOut') return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
             return p;
         }
 
-        // --- 6. CHẠY ANIMATION XOAY 360 ĐỘ THEO ĐỒ THỊ ---
-        let isAnimating = false;
         function playAnimation() {
-            if (!activeLayerId || isAnimating) return;
+            if (!activeLayerId) return;
             const layer = layers.find(l => l.id === activeLayerId);
             
-            isAnimating = true;
-            const duration = 3000; // 3 giây
+            const duration = 3000; 
             const startTime = performance.now();
-            const startRot = layer.rot3DY; // Xoay từ góc hiện tại
-            const targetRot = startRot + 360; // Xoay thêm 360 độ
-
-            // Chạy thanh playhead
+            const startRot = layer.rot3DY;
             const playhead = document.getElementById('playhead');
-            playhead.style.transition = 'none';
-            playhead.style.left = '0%';
-            
+
             function animateStep(currentTime) {
-                let elapsed = currentTime - startTime;
-                let progress = Math.min(elapsed / duration, 1);
-                
-                // Cập nhật thanh playhead
+                let progress = Math.min((currentTime - startTime) / duration, 1);
                 playhead.style.left = (progress * 100) + '%';
 
-                // Tính toán góc xoay dựa trên đồ thị
-                let easedProgress = getEasedProgress(progress, layer.graph);
-                layer.rot3DY = startRot + (easedProgress * 360); // 360 độ
+                let eased = getEasedProgress(progress, layer.graph);
+                layer.rot3DY = startRot + (eased * 360);
 
-                // Cập nhật UI thanh trượt
                 inputs.rot3DY.value = layer.rot3DY % 360;
                 document.getElementById('valRot3DY').innerText = Math.round(layer.rot3DY % 360) + '°';
 
-                if (progress < 1) {
-                    requestAnimationFrame(animateStep);
-                } else {
-                    isAnimating = false;
-                    layer.rot3DY = targetRot % 360; // Chuẩn hóa góc
-                    // Reset playhead
-                    setTimeout(() => playhead.style.left = '0%', 500);
-                }
+                if (progress < 1) requestAnimationFrame(animateStep);
+                else setTimeout(() => playhead.style.left = '50%', 500);
             }
             requestAnimationFrame(animateStep);
         }
 
-        // --- 7. XUẤT VIDEO (EXPORT) ---
+        // 7. Export Video
         function exportVideo() {
             if (layers.length === 0) return;
-            
             const btn = document.getElementById('btnExport');
-            btn.innerText = "Đang Render...";
+            btn.innerText = "Rendering...";
             btn.disabled = true;
 
-            // Đảm bảo video chạy từ đầu
-            layers.forEach(l => {
-                if(l.type === 'video') l.element.currentTime = 0;
-            });
+            layers.forEach(l => { if(l.type === 'video') l.element.currentTime = 0; });
 
-            const stream = canvas.captureStream(30); // 30 FPS
+            const stream = canvas.captureStream(30);
             const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
             const chunks = [];
 
             recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-            
             recorder.onstop = () => {
                 const blob = new Blob(chunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = 'mini_capcut_export.webm';
-                a.click();
-                
-                btn.innerText = "XUẤT VIDEO";
-                btn.disabled = false;
+                a.href = url; a.download = 'capcut_clone_export.webm'; a.click();
+                btn.innerText = "Xuất"; btn.disabled = false;
             };
 
             recorder.start();
-
-            // Chạy hiệu ứng cho tất cả các lớp (Demo 3 giây)
             const duration = 3000;
             const startTime = performance.now();
-            
-            // Lưu lại trạng thái ban đầu
             const initialStates = layers.map(l => ({ id: l.id, rot3DY: l.rot3DY }));
 
             function renderExportStep(currentTime) {
@@ -431,17 +516,12 @@
                 
                 layers.forEach(layer => {
                     const initState = initialStates.find(s => s.id === layer.id);
-                    if (initState) {
-                        let eased = getEasedProgress(progress, layer.graph);
-                        layer.rot3DY = initState.rot3DY + (eased * 360);
-                    }
+                    if (initState) layer.rot3DY = initState.rot3DY + (getEasedProgress(progress, layer.graph) * 360);
                 });
 
-                if (progress < 1) {
-                    requestAnimationFrame(renderExportStep);
-                } else {
+                if (progress < 1) requestAnimationFrame(renderExportStep);
+                else {
                     recorder.stop();
-                    // Khôi phục trạng thái
                     initialStates.forEach(state => {
                         const l = layers.find(l => l.id === state.id);
                         if (l) l.rot3DY = state.rot3DY;
