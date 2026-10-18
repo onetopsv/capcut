@@ -3,184 +3,302 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Editor - Xuất Video</title>
+    <title>Web Editor Full: Upload - 3D - Graph - Export</title>
     <style>
-        body { background: #121212; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; overflow-x: hidden; }
+        body { background: #121212; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
         
-        /* KHU VỰC PREVIEW */
-        .scene { width: 300px; height: 300px; perspective: 1000px; margin-top: 30px; margin-bottom: 20px; position: relative; }
-        .card {
-            width: 100%; height: 100%; position: relative; transform-style: preserve-3d;
-            border: 2px solid #00d2d3; box-sizing: border-box;
-            transform: scale(1) rotate(0deg); /* Lúc hiển thị dùng CSS cho mượt */
+        /* Khu vực hiển thị Video 3D */
+        #canvas-container {
+            width: 100%; max-width: 500px; height: 300px;
+            background: #000; border-radius: 10px; overflow: hidden;
+            margin-bottom: 20px; position: relative;
         }
-        .card video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-        /* BẢNG ĐIỀU KHIỂN */
-        .controls-panel { width: 100%; max-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 15px; display: flex; flex-direction: column; gap: 15px; }
+        /* Bảng điều khiển */
+        .controls-panel {
+            width: 100%; max-width: 500px; background: #1e1e1e;
+            padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 15px;
+        }
+
         .slider-group { display: flex; flex-direction: column; gap: 5px; }
         .slider-header { display: flex; justify-content: space-between; font-size: 14px; color: #ddd; }
         input[type=range] { width: 100%; cursor: pointer; }
-        
-        /* NÚT XUẤT VIDEO */
-        .btn-export { 
-            background: #00d2d3; color: black; border: none; padding: 15px; 
-            border-radius: 8px; font-weight: bold; font-size: 16px; 
-            cursor: pointer; margin-top: 10px;
+
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        button {
+            flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
         }
-        .btn-export:disabled { background: #555; color: #888; cursor: not-allowed; }
+        .btn-play { background: #444; color: white; }
+        .btn-export { background: #00d2d3; color: black; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         
-        /* Thẻ canvas ẩn dùng để render video */
-        #hiddenCanvas { display: none; }
+        /* Input Upload */
+        .upload-btn {
+            display: block; text-align: center; padding: 15px;
+            border: 2px dashed #00d2d3; border-radius: 8px; cursor: pointer;
+            color: #00d2d3; margin-bottom: 10px;
+        }
+        input[type="file"] { display: none; }
+        
+        #status { text-align: center; font-size: 13px; color: #00d2d3; margin-top: 10px; height: 18px;}
     </style>
+    
+    <!-- Nhúng thư viện Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <!-- KHU VỰC VIDEO HIỂN THỊ -->
-    <div class="scene">
-        <div class="card" id="videoCard">
-            <video id="myVideo" src="https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-1173-large.mp4" autoplay loop muted playsinline crossorigin="anonymous"></video>
-        </div>
-    </div>
+    <!-- Thẻ chứa Canvas 3D -->
+    <div id="canvas-container"></div>
 
-    <!-- BẢNG ĐIỀU KHIỂN -->
     <div class="controls-panel">
+        <!-- Nút Tải Video Lên -->
+        <label class="upload-btn">
+            + Tải Video Từ Máy Lên
+            <input type="file" id="fileInput" accept="video/*">
+        </label>
+
+        <!-- Thanh trượt Kích thước -->
         <div class="slider-group">
-            <div class="slider-header"><span>Kích thước</span><span id="val-scale">100%</span></div>
-            <input type="range" id="slider-scale" min="10" max="200" value="100">
+            <div class="slider-header"><span>Kích thước</span><span id="val-scale">1.0x</span></div>
+            <input type="range" id="slider-scale" min="0.1" max="2" step="0.1" value="1">
         </div>
+
+        <!-- Thanh trượt Xoay 3D -->
         <div class="slider-group">
-            <div class="slider-header"><span>Xoay 2D</span><span id="val-rotate2d">0°</span></div>
-            <input type="range" id="slider-rotate2d" min="-180" max="180" value="0">
+            <div class="slider-header"><span>Xoay 3D (Trục Y)</span><span id="val-rotatey">0°</span></div>
+            <input type="range" id="slider-rotatey" min="-180" max="180" value="0">
+        </div>
+
+        <!-- Chọn Đồ thị -->
+        <div class="slider-group">
+            <div class="slider-header"><span>Đồ thị chuyển động</span></div>
+            <select id="graph-select" style="padding: 8px; border-radius: 5px; background: #333; color: white; border: none;">
+                <option value="linear">Đều (Linear)</option>
+                <option value="easeOut" selected>Hình khối phóng ra (Ease-out)</option>
+                <option value="easeInOut">Hình khối chữ S (S-Curve)</option>
+            </select>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-play" id="btn-play" onclick="playAnimation()">▶ Chạy thử (3s)</button>
+            <button class="btn-export" id="btn-export" onclick="startExport()">XUẤT VIDEO</button>
         </div>
         
-        <!-- Nút Xuất Video -->
-        <button class="btn-export" id="btn-export" onclick="startExport()">XUẤT VIDEO (Tải xuống)</button>
-        <div id="status-text" style="text-align: center; font-size: 13px; color: #00d2d3;"></div>
+        <div id="status">Vui lòng tải video lên để bắt đầu.</div>
     </div>
-
-    <!-- CANVAS ẨN (Dùng để vẽ và ghi hình) -->
-    <canvas id="hiddenCanvas" width="720" height="720"></canvas>
 
     <script>
-        const video = document.getElementById('myVideo');
-        const videoCard = document.getElementById('videoCard');
-        const canvas = document.getElementById('hiddenCanvas');
-        const ctx = canvas.getContext('2d');
+        // --- 1. KHỞI TẠO THREE.JS (WEBGL) ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
         
-        const scaleSlider = document.getElementById('slider-scale');
-        const rotateSlider = document.getElementById('slider-rotate2d');
-        const valScale = document.getElementById('val-scale');
-        const valRotate2D = document.getElementById('val-rotate2d');
-        
-        const btnExport = document.getElementById('btn-export');
-        const statusText = document.getElementById('status-text');
+        // Camera tạo góc nhìn phối cảnh (Perspective)
+        const camera = new THREE.PerspectiveCamera(45, 500 / 300, 0.1, 1000);
+        camera.position.z = 4.5; // Đẩy camera ra xa để nhìn rõ hiệu ứng 3D
 
-        // 1. Cập nhật hiệu ứng lên màn hình (CSS)
+        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        renderer.setSize(500, 300);
+        container.appendChild(renderer.domElement);
+
+        // Tạo một mặt phẳng (Plane) để chứa video
+        const geometry = new THREE.PlaneGeometry(3, 3); // Kích thước mặt phẳng
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const plane = new THREE.Mesh(geometry, material);
+        scene.add(plane);
+
+        // --- 2. XỬ LÝ VIDEO & TẢI LÊN ---
+        const video = document.createElement('video');
+        video.crossOrigin = 'anonymous';
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+
+        let videoTexture = null;
+        let isVideoLoaded = false;
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+            video.src = url;
+            
+            video.onloadeddata = () => {
+                video.play();
+                isVideoLoaded = true;
+                document.getElementById('status').innerText = "Tải video thành công!";
+                document.getElementById('btn-play').disabled = false;
+                document.getElementById('btn-export').disabled = false;
+
+                // Tạo texture từ video và gán vào mặt phẳng 3D
+                videoTexture = new THREE.VideoTexture(video);
+                videoTexture.minFilter = THREE.LinearFilter;
+                videoTexture.magFilter = THREE.LinearFilter;
+                material.map = videoTexture;
+                material.needsUpdate = true;
+
+                // Điều chỉnh tỷ lệ mặt phẳng theo tỷ lệ video
+                const aspect = video.videoWidth / video.videoHeight;
+                plane.scale.set(aspect, 1, 1);
+            };
+        });
+
+        // Hàm render liên tục (để video chạy trên màn hình)
+        function renderLoop() {
+            requestAnimationFrame(renderLoop);
+            if (isVideoLoaded && videoTexture) {
+                videoTexture.needsUpdate = true;
+            }
+            renderer.render(scene, camera);
+        }
+        renderLoop();
+
+        // --- 3. LOGIC ĐIỀU KHIỂN VÀ ĐỒ THỊ ---
+        const scaleSlider = document.getElementById('slider-scale');
+        const rotYSlider = document.getElementById('slider-rotatey');
+        const valScale = document.getElementById('val-scale');
+        const valRotY = document.getElementById('val-rotatey');
+        
+        let targetScale = 1;
+        let targetRotY = 0;
+
+        // Lắng nghe sự kiện kéo thanh trượt
         function updateUI() {
-            const s = scaleSlider.value / 100;
-            const r = rotateSlider.value;
-            valScale.innerText = `${scaleSlider.value}%`;
-            valRotate2D.innerText = `${r}°`;
-            videoCard.style.transform = `scale(${s}) rotate(${r}deg)`;
+            targetScale = parseFloat(scaleSlider.value);
+            targetRotY = parseInt(rotYSlider.value);
+            
+            valScale.innerText = targetScale.toFixed(1) + 'x';
+            valRotY.innerText = targetRotY + '°';
+
+            // Áp dụng ngay lập tức lên mô hình 3D
+            applyTransform(targetScale, targetRotY);
         }
         scaleSlider.addEventListener('input', updateUI);
-        rotateSlider.addEventListener('input', updateUI);
+        rotYSlider.addEventListener('input', updateUI);
 
-        // 2. HÀM XUẤT VIDEO
+        // Hàm áp dụng Scale và Rotate vào Three.js
+        function applyTransform(scale, rotYDeg) {
+            const rotYRad = (rotYDeg * Math.PI) / 180;
+            // Giữ nguyên tỷ lệ khung hình (aspect ratio) ban đầu
+            const aspect = video.videoWidth ? video.videoWidth / video.videoHeight : 1;
+            plane.scale.set(aspect * scale, scale, 1);
+            plane.rotation.y = rotYRad;
+        }
+
+        // Các hàm Easing (Đồ thị)
+        function getEasedProgress(p, type) {
+            if (type === 'linear') return p;
+            if (type === 'easeOut') return 1 - Math.pow(1 - p, 3); // Hình khối phóng ra
+            if (type === 'easeInOut') {
+                return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; // Hình khối chữ S
+            }
+            return p;
+        }
+
+        // --- 4. CHẠY ANIMATION XOAY 360 ĐỘ ---
+        let isAnimating = false;
+
+        function playAnimation() {
+            if (!isVideoLoaded || isAnimating) return;
+            isAnimating = true;
+            
+            const duration = 3000; // 3 giây
+            const startTime = performance.now();
+            const graphType = document.getElementById('graph-select').value;
+            const baseScale = parseFloat(scaleSlider.value);
+
+            function animateStep(currentTime) {
+                let elapsed = currentTime - startTime;
+                let progress = Math.min(elapsed / duration, 1);
+                let easedProgress = getEasedProgress(progress, graphType);
+
+                // Xoay từ 0 đến 360 độ
+                let currentAngle = easedProgress * 360;
+                let currentRad = (currentAngle * Math.PI) / 180;
+
+                // Áp dụng vào 3D
+                const aspect = video.videoWidth / video.videoHeight;
+                plane.scale.set(aspect * baseScale, baseScale, 1);
+                plane.rotation.y = currentRad;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateStep);
+                } else {
+                    isAnimating = false;
+                }
+            }
+            requestAnimationFrame(animateStep);
+        }
+
+        // --- 5. XUẤT VIDEO TỪ THREE.JS ---
         let mediaRecorder;
         let recordedChunks = [];
 
         function startExport() {
-            // Tạm dừng video đang chạy trên màn hình để reset về đầu
-            video.pause();
-            video.currentTime = 0;
+            if (!isVideoLoaded) return;
+            
+            const btnExport = document.getElementById('btn-export');
+            const status = document.getElementById('status');
             
             btnExport.disabled = true;
-            statusText.innerText = "Đang chuẩn bị xuất video...";
-            
-            // Lấy cấu hình từ thanh trượt
-            const scaleVal = scaleSlider.value / 100;
-            const rotateVal = (rotateSlider.value * Math.PI) / 180; // Đổi độ sang Radian cho Canvas
+            status.innerText = "Đang render video 3D... Vui lòng đợi.";
 
-            // Cấu hình MediaRecorder
-            const stream = canvas.captureStream(30); // 30 FPS
-            const options = { mimeType: 'video/webm; codecs=vp9' };
+            // Reset video về đầu
+            video.currentTime = 0;
             
-            try {
-                mediaRecorder = new MediaRecorder(stream, options);
-            } catch (e) {
-                // Fallback cho các trình duyệt không hỗ trợ vp9
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-            }
-
-            mediaRecorder.ondataavailable = function(e) {
+            // Bắt đầu ghi từ Canvas của Three.js
+            const stream = renderer.domElement.captureStream(30); // 30FPS
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = e => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
 
-            mediaRecorder.onstop = function() {
-                // Khi ghi xong, tạo file và tải xuống
+            mediaRecorder.onstop = () => {
                 const blob = new Blob(recordedChunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.style.display = 'none';
                 a.href = url;
-                a.download = 'video_da_chinh_sua.webm';
-                document.body.appendChild(a);
+                a.download = 'video_3d_hieu_ung.webm';
                 a.click();
-                window.URL.revokeObjectURL(url);
                 
-                // Reset trạng thái
-                recordedChunks = [];
+                status.innerText = "Xuất video thành công!";
                 btnExport.disabled = false;
-                statusText.innerText = "Xuất thành công! Đã tải về máy.";
-                video.loop = true;
-                video.play(); // Chạy lại video trên màn hình
             };
 
-            // Bắt đầu ghi
+            // Bắt đầu ghi và chạy animation
             mediaRecorder.start();
-            video.loop = false; // Tắt loop để nó dừng đúng lúc video kết thúc
             video.play();
-            statusText.innerText = "Đang render video... Vui lòng đợi.";
+            
+            const duration = 3000; // Quay 3 giây
+            const startTime = performance.now();
+            const graphType = document.getElementById('graph-select').value;
+            const baseScale = parseFloat(scaleSlider.value);
 
-            // HÀM VẼ VIDEO LÊN CANVAS LIÊN TỤC
-            function drawFrame() {
-                if (video.paused || video.ended) {
-                    mediaRecorder.stop(); // Dừng ghi khi video hết
-                    return;
+            function exportAnimation(currentTime) {
+                let elapsed = currentTime - startTime;
+                let progress = Math.min(elapsed / duration, 1);
+                let easedProgress = getEasedProgress(progress, graphType);
+
+                // Xoay 360 độ
+                let currentAngle = easedProgress * 360;
+                let currentRad = (currentAngle * Math.PI) / 180;
+
+                const aspect = video.videoWidth / video.videoHeight;
+                plane.scale.set(aspect * baseScale, baseScale, 1);
+                plane.rotation.y = currentRad;
+
+                if (progress < 1) {
+                    requestAnimationFrame(exportAnimation);
+                } else {
+                    mediaRecorder.stop(); // Ghi xong thì dừng
+                    // Trả lại trạng thái theo thanh trượt ban đầu
+                    applyTransform(parseFloat(scaleSlider.value), parseInt(rotYSlider.value));
                 }
-
-                // Xóa canvas trước khi vẽ frame mới
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Lưu trạng thái canvas
-                ctx.save();
-                
-                // Di chuyển tâm canvas ra giữa
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                
-                // Áp dụng Xoay (Rotate) và Phóng to (Scale)
-                ctx.rotate(rotateVal);
-                ctx.scale(scaleVal, scaleVal);
-
-                // Tính toán kích thước để video vừa khít canvas (tương tự object-fit: cover)
-                // Ở đây video gốc đang vuông 1:1 nên ta vẽ vừa khung
-                const drawWidth = canvas.width;
-                const drawHeight = canvas.height;
-                
-                // Vẽ video lên canvas (đặt tâm ở giữa)
-                ctx.drawImage(video, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-                
-                // Khôi phục trạng thái
-                ctx.restore();
-
-                // Gọi lại hàm này ở frame tiếp theo
-                requestAnimationFrame(drawFrame);
             }
-
-            // Bắt đầu vẽ
-            requestAnimationFrame(drawFrame);
+            requestAnimationFrame(exportAnimation);
         }
     </script>
 </body>
